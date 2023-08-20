@@ -4,38 +4,46 @@ use std::time::Duration;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
+mod byte_handler;
+
+use byte_handler::decode_some_bytes;
+
 pub struct ReturnMsg {
     content: String,
     addr: std::net::SocketAddr,
 }
 
 pub async fn get_input_task(
+    max_queue_size: i32,
     socket: Arc<UdpSocket>,
-    current_queue_size: Arc<AtomicI32>,
     tx: mpsc::Sender<ReturnMsg>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut buf = [0; 1024];
+    let current_queue_size = Arc::new(AtomicI32::new(0));
     async move {
         loop {
-            let (size, addr) = socket.recv_from(&mut buf).await.unwrap();
+            let (size, addr) = socket.recv_from(&mut buf).await?;
             let content = buf[..size].to_vec();
 
             let current_queue_size = current_queue_size.clone();
             let tx = tx.clone();
 
-            if current_queue_size.load(Ordering::Relaxed) >= 3 {
+            if current_queue_size.load(Ordering::Relaxed) >= max_queue_size {
                 println!("queue full please try again later");
                 continue;
             }
             current_queue_size.fetch_add(1, Ordering::Relaxed);
+
             tokio::spawn(async move {
                 println!("received content... processing");
                 tokio::time::sleep(Duration::from_secs(5)).await;
-                let revd_msg = String::from_utf8(content).unwrap();
+
+                // call byte handler to decode message and run a query
+                decode_some_bytes(&content).unwrap();
 
                 if let Err(e) = tx
                     .send(ReturnMsg {
-                        content: revd_msg,
+                        content: "no error".to_string(),
                         addr,
                     })
                     .await
