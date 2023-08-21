@@ -5,8 +5,9 @@ use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
 mod byte_handler;
+mod util;
 
-use byte_handler::decode_some_bytes;
+use util::get_query_from_bytes;
 
 pub struct ReturnMsg {
     content: String,
@@ -39,7 +40,8 @@ pub async fn get_input_task(
                 tokio::time::sleep(Duration::from_secs(5)).await;
 
                 // call byte handler to decode message and run a query
-                decode_some_bytes(&content).unwrap();
+                let query = get_query_from_bytes(&content).unwrap();
+                println!("query: {:?}", query);
 
                 if let Err(e) = tx
                     .send(ReturnMsg {
