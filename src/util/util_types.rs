@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 #[derive(derive_builder::Builder, Default, Debug)]
-pub struct DNSQuery<'a> {
+pub struct DNSQueryQuestion<'a> {
     op_code: u8,
     is_truncated: bool,
     is_recursive: bool,
@@ -13,6 +13,9 @@ pub struct DNSQuery<'a> {
     q_type: QType,
     q_class: QClass,
 }
+
+#[derive(derive_builder::Builder, Default, Debug)]
+pub struct DNSQueryAnswer {}
 
 #[derive(Clone, Default, Debug)]
 pub enum QType {

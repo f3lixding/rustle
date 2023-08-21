@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
-mod byte_handler;
+mod query_service;
 mod util;
 
 use util::get_query_from_bytes;
