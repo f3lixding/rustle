@@ -3,7 +3,7 @@ use std::str::from_utf8;
 
 pub fn get_query_from_bytes(
     bytes: &[u8],
-) -> Result<DNSQuery, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<DNSQueryQuestion, Box<dyn std::error::Error + Send + Sync>> {
     // first two bytes should be id (u16)
     // big endian
     let index: u16 = (bytes[0] as u16) << 8 | bytes[1] as u16;
@@ -41,7 +41,7 @@ pub fn get_query_from_bytes(
     let q_class = (bytes[cur_idx] as u16) << 8 | bytes[cur_idx + 1] as u16;
     cur_idx += 2;
 
-    Ok(DNSQueryBuilder::default()
+    Ok(DNSQueryQuestionBuilder::default()
         .op_code(op_code)
         .is_truncated(is_truncated)
         .is_recursive(is_recursive)

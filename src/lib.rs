@@ -14,6 +14,11 @@ pub struct ReturnMsg {
     addr: std::net::SocketAddr,
 }
 
+/// Provider for task that listens for external messages.
+/// Upon receiving a message (which would be a UDP packet, because it's a DNS query), it spawns a
+/// task to process the query.
+///
+/// Currently there is a maximum queue size.
 pub async fn get_input_task(
     max_queue_size: i32,
     socket: Arc<UdpSocket>,
@@ -62,6 +67,8 @@ pub async fn get_input_task(
     .await
 }
 
+/// Provider for task that listens for internal messages.
+/// Upon receiving a message, it sends a udp response back to the target port.
 pub async fn get_output_task(
     mut rx: mpsc::Receiver<ReturnMsg>,
     socket: Arc<UdpSocket>,

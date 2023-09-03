@@ -3,6 +3,9 @@ use tokio::sync::RwLock;
 
 use crate::util::{DNSQueryAnswer, DNSQueryAnswerBuilder, DNSQueryQuestion};
 
+struct NotPrimed;
+struct Primed;
+
 // replace these types with real types
 #[derive(Default, Debug, derive_builder::Builder)]
 #[builder(pattern = "owned")]
