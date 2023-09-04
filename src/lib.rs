@@ -42,6 +42,9 @@ pub async fn get_input_task(
 
             tokio::spawn(async move {
                 println!("received content... processing");
+                // this is simulating time taken to do work
+                // we need to remove it after
+                // TODO: remove this
                 tokio::time::sleep(Duration::from_secs(5)).await;
 
                 // call byte handler to decode message and run a query

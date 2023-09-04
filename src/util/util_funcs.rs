@@ -1,13 +1,61 @@
 use super::util_types::*;
 use std::str::from_utf8;
 
+/// This function converts a byte array to a DNSQeuryQuestion.
+/// The format of the expected byte array is as follows:
+/// - `Transaction id`: u16
+/// - `Flags`: 2 bytes are dedicated for flags:
+///     - `is_question`:         x... .... .... ...., 1 bit
+///     - `op_code`:             .xxx x... .... ...., 4 bits
+///     - `is_truncated`:        .... .x.. .... ...., 1 bit
+///     - `recurison_desired`:   .... ...x .... ...., 1 bit
+///     - `Z reserved`:          .... .... .x.. ...., 1 bit
+///     - `AD bit`:              .... .... ..x. ...., 1 bit
+///     - `allow non auth data`: .... .... ...x ...., 1 bit
+/// - `Question count`: u16
+/// - `Number of Answer Resource Record`: u16.
+///     - This is where the answer to the query question goes.
+///     - This is not a part of the question. This is where the answer goes.
+/// - `Number of Authority Resource Records`: u16.
+///     - This is the number of authority resource records that are capable of providing definitive
+///     answers to the query questions.
+///     - This is also not a part of the question.
+/// - `Number of Additional Resource Records`: u16.
+///     - This is the number of additional resource records associated with the question.
+///     - This is typically things that supplement the question (like querying for MX record, A
+///     record etc).
+///     - Some examples are:
+///         - A or AAAA records.
+///         - OPT records.
+///         - TSIG records.
+/// - `Query`: variable length
+///     - This section contains the question to be answered.
+///     - A variable-length field that contains the domain being queried.
+///     - It's encoded as a series of labels, each with a length byte followed by the label itself.
+///     - Each label is a segment in the domain being queried about, without the dots (the dots is
+///     what delimits the question, like www.google.com).
+/// - `Addition records`: Variable length. It has two possible record type. Both of which uses the
+/// same format but depending on the record type the fields are repurposed.
+///     - Normal case. The fields in this is very similar to the query section:
+///         - `Domain Name`: Variable length. This shares the same format as the query section.
+///         - `Type`: u16. This correlates to `QType`.
+///         - 'Class': u16. This correlates to `QClass`.
+///         - `TTL`: u32, in seconds.
+///         - `RDLENGTH`: u16, specifying length of RDATA in bytes.
+///         - `RDATA`: The data type varies depending on the record type. For example, for an A record, it's a 32-bit IPv4 address. For an AAAA record, it's a 128-bit IPv6 address. For an OPT record, it's a series of additional fields and options.
+///     - Special case. For OPT record the fields are repurposed.
+///         - `Domain Name`: 0,
+///         - `Type`: This would have the value of 41.
+///         - `Class`: This would now be used to represent the UDP packet's size.
+///         - `TTL`: Divided into several sub-fields including extended RCODE and flags.
+///         - `RDLENGTH`: Length of all the options.
+///         - `RDATA`: Variable-length field containing one or more EDNS options.
 pub fn get_query_from_bytes(
     bytes: &[u8],
 ) -> Result<DNSQueryQuestion, Box<dyn std::error::Error + Send + Sync>> {
     // first two bytes should be id (u16)
     // big endian
-    let index: u16 = (bytes[0] as u16) << 8 | bytes[1] as u16;
-    println!("index: {}", index);
+    let message_id: u16 = (bytes[0] as u16) << 8 | bytes[1] as u16;
 
     // second two bytes should be flags
     // going to skip the second byte for now
@@ -42,6 +90,7 @@ pub fn get_query_from_bytes(
     cur_idx += 2;
 
     Ok(DNSQueryQuestionBuilder::default()
+        .message_id(message_id)
         .op_code(op_code)
         .is_truncated(is_truncated)
         .is_recursive(is_recursive)
@@ -53,4 +102,8 @@ pub fn get_query_from_bytes(
         .q_type(QType::from_u16(q_type).ok_or("QType::from_u16 failed")?)
         .q_class(QClass::from_u16(q_class).ok_or("QClass::from_u16 failed")?)
         .build()?)
+}
+
+pub fn get_query_bytes_from_query_answer(query_answer: &DNSQueryAnswer) -> Vec<u8> {
+    Vec::new()
 }

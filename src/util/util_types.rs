@@ -2,6 +2,7 @@
 
 #[derive(derive_builder::Builder, Default, Debug)]
 pub struct DNSQueryQuestion<'a> {
+    message_id: u16,
     op_code: u8,
     is_truncated: bool,
     is_recursive: bool,
