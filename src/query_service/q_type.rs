@@ -1,23 +1,3 @@
-#![allow(dead_code)]
-
-#[derive(derive_builder::Builder, Default, Debug)]
-pub struct DNSQueryQuestion<'a> {
-    message_id: u16,
-    op_code: u8,
-    is_truncated: bool,
-    is_recursive: bool,
-    num_of_questions: u16,
-    num_of_arr: u16,
-    num_of_ar: u16,
-    num_of_additional_rrs: u16,
-    q_name_array: Vec<&'a str>,
-    q_type: QType,
-    q_class: QClass,
-}
-
-#[derive(derive_builder::Builder, Default, Debug)]
-pub struct DNSQueryAnswer {}
-
 #[derive(Clone, Default, Debug)]
 pub enum QType {
     #[default]
@@ -60,27 +40,6 @@ impl QType {
             53 => Some(QType::SSHFP),
             99 => Some(QType::SPF),
             257 => Some(QType::CAA),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Default, Debug)]
-pub enum QClass {
-    #[default]
-    IN,
-    CS,
-    CH,
-    HS,
-}
-
-impl QClass {
-    pub fn from_u16(u: u16) -> Option<Self> {
-        match u {
-            1 => Some(QClass::IN),
-            2 => Some(QClass::CS),
-            3 => Some(QClass::CH),
-            4 => Some(QClass::HS),
             _ => None,
         }
     }

@@ -4,12 +4,9 @@ use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
 mod query_service;
-mod util;
-
-use util::get_query_from_bytes;
 
 pub struct ReturnMsg {
-    content: String,
+    content: Vec<u8>,
     addr: std::net::SocketAddr,
 }
 
@@ -40,15 +37,14 @@ pub async fn get_input_task(
             current_queue_size.fetch_add(1, Ordering::Relaxed);
 
             tokio::spawn(async move {
+                // TODO: log this
                 println!("received content... processing");
 
                 // call byte handler to decode message and run a query
-                let query = get_query_from_bytes(&content).unwrap();
-                println!("query: {:?}", query);
 
                 if let Err(e) = tx
                     .send(ReturnMsg {
-                        content: "no error".to_string(),
+                        content: Vec::new(),
                         addr,
                     })
                     .await
@@ -74,7 +70,7 @@ pub async fn get_output_task(
     async move {
         while let Some(msg) = rx.recv().await {
             let ReturnMsg { content, addr } = msg;
-            if let Err(_) = socket.send_to(&content.as_bytes(), &addr).await {
+            if let Err(_) = socket.send_to(&content, &addr).await {
                 println!("message send failed");
             }
         }
