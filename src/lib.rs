@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
 
@@ -42,10 +41,6 @@ pub async fn get_input_task(
 
             tokio::spawn(async move {
                 println!("received content... processing");
-                // this is simulating time taken to do work
-                // we need to remove it after
-                // TODO: remove this
-                tokio::time::sleep(Duration::from_secs(5)).await;
 
                 // call byte handler to decode message and run a query
                 let query = get_query_from_bytes(&content).unwrap();
