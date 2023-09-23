@@ -3,7 +3,9 @@ use tokio::sync::RwLock;
 
 use crate::util::{DNSQueryAnswer, DNSQueryAnswerBuilder, DNSQueryQuestion};
 
+#[allow(dead_code)]
 struct NotPrimed;
+#[allow(dead_code)]
 struct Primed;
 
 // replace these types with real types

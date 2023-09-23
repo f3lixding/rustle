@@ -89,6 +89,34 @@ pub fn get_query_from_bytes(
     let q_class = (bytes[cur_idx] as u16) << 8 | bytes[cur_idx + 1] as u16;
     cur_idx += 2;
 
+    // Additional records.
+    // We are reading the first byte first to determine the record type.
+    let is_opt = {
+        let first_byte = bytes[cur_idx] as u8;
+        first_byte & 0b1111_1111 == 0b0000_0000
+    };
+
+    // Currently we are not doing anything with additional records.
+    // This is because all we want to see is if the record being requested is on the blocklist.
+    if is_opt {
+        println!("Additional record is OPT"); // TODO: Change this to logging later
+        cur_idx += 1;
+        let _q_type = {
+            let q_type = (bytes[cur_idx] as u16) << 8 | bytes[cur_idx + 1] as u16;
+            cur_idx += 2;
+            QType::from_u16(q_type).ok_or("QType::from_u16 failed")?
+        };
+        let _packet_size = {
+            let packet_size = (bytes[cur_idx] as u16) << 8 | bytes[cur_idx + 1] as u16;
+            cur_idx += 2;
+            packet_size
+        };
+
+        let _r_code = (bytes[cur_idx] & 0b0000_1111) as u8;
+    } else {
+        println!("Additional records is not OPT"); // TODO: Change this to logging later
+    }
+
     Ok(DNSQueryQuestionBuilder::default()
         .message_id(message_id)
         .op_code(op_code)
