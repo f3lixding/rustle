@@ -1,3 +1,5 @@
+use query_service::QueryService;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -22,6 +24,19 @@ pub async fn get_input_task(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut buf = [0; 1024];
     let current_queue_size = Arc::new(AtomicI32::new(0));
+
+    // Prime the directory. TODO: Find a better place for this.
+    {
+        println!("Priming the directory");
+        tokio::fs::create_dir_all("var/db").await?;
+        tokio::fs::write("var/db/init.txt", "/something/something/").await?;
+    }
+
+    let query_service = QueryService::new(PathBuf::from("var/db/init.txt"))
+        .index_db()
+        .await?
+        .register_for_periodic_update()?;
+
     async move {
         loop {
             let (size, addr) = socket.recv_from(&mut buf).await?;
