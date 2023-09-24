@@ -9,7 +9,6 @@ use tokio::sync::RwLock;
 
 use super::dns_query_answer::*;
 use super::dns_query_question::*;
-use super::utils::*;
 
 // We shall enforce the state transition order as reflected by the structs' order below:
 #[allow(dead_code)]
@@ -150,13 +149,8 @@ impl QueryService<NotRegisteredForPeriodicUpdate> {
 impl QueryService<Ready> {
     pub async fn process_bytes(
         &self,
-        query: &DNSQueryQuestion<'_>,
+        input_bytes: &Vec<u8>,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(vec![])
-    }
-
-    pub async fn update_db(&self, mut new_db: HashSet<String>) {
-        let mut cache = self.nono_list.write().await;
-        std::mem::swap(&mut *cache, &mut new_db);
     }
 }
