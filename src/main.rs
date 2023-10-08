@@ -1,4 +1,4 @@
-use rustle::get_input_task;
+use rustle::get_input_tasks;
 use rustle::QueryService;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,19 +36,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .await?
         .register_for_periodic_update()?;
     let update_task_handle = query_service.gib_update_task_handle().unwrap();
-    let input_task = tokio::spawn(get_input_task(
-        maxqueuesize,
-        socket.clone(),
-        router_addr,
-        query_service,
-    ));
+    let (main_listener_task, subrequest_task) =
+        get_input_tasks(maxqueuesize, socket.clone(), router_addr, query_service).await?;
 
     tokio::select! {
-        _ = input_task => {
-            println!("Input task exited")
-        }
-        _ = update_task_handle => {
-            println!("Update task exited")
+        _ = main_listener_task => {}
+        _ = subrequest_task => {}
+        update_res = update_task_handle => {
+            match update_res {
+                Ok(_) => println!("Update task exited normally"),
+                Err(e) => println!("Update task exited with error: {:?}", e),
+            }
         }
     }
 

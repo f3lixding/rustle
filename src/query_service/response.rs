@@ -1,4 +1,4 @@
 pub enum Response {
     Hit(Vec<u8>),
-    Miss,
+    Miss(u16),
 }

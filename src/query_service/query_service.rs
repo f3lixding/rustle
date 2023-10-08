@@ -91,8 +91,7 @@ impl QueryService<NotRegisteredForPeriodicUpdate> {
                 println!("Spawning periodic update task");
                 loop {
                     tokio::select! {
-                        // _ = tokio::time::sleep(std::time::Duration::from_secs(60 * 60 * 24 * 7)) => {}
-                        _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => {}
+                        _ = tokio::time::sleep(std::time::Duration::from_secs(60 * 60 * 24 * 7)) => {}
                         // TODO: add a notify here to wake this task up from sleep upon
                         // We can accept the notify as an arg from new()
                     }
@@ -129,7 +128,6 @@ impl QueryService<NotRegisteredForPeriodicUpdate> {
                     file.write_all(list_content.as_bytes()).await?;
                     // TODO: log this
                     println!("Block list file {} updated", time_now);
-                    break;
                 }
 
                 #[allow(unreachable_code)]
@@ -157,7 +155,7 @@ impl QueryService<Ready> {
     ) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
         let query = DNSQueryQuestion::try_from(input_bytes)?;
         println!("Query: {:?}", query);
-        Ok(Response::Miss)
+        Ok(Response::Miss(query.message_id))
     }
 
     pub fn gib_update_task_handle(
