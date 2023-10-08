@@ -1,16 +1,10 @@
-use query_service::QueryService;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 use tokio::net::UdpSocket;
-use tokio::sync::mpsc;
 
 mod query_service;
 
-pub struct ReturnMsg {
-    content: Vec<u8>,
-    addr: std::net::SocketAddr,
-}
+pub use query_service::{QueryService, Ready};
 
 /// Provider for task that listens for external messages.
 /// Upon receiving a message (which would be a UDP packet, because it's a DNS query), it spawns a
@@ -20,35 +14,29 @@ pub struct ReturnMsg {
 pub async fn get_input_task(
     max_queue_size: i32,
     socket: Arc<UdpSocket>,
-    tx: mpsc::Sender<ReturnMsg>,
+    router_addr: String,
+    query_service: QueryService<Ready>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut buf = [0; 1024];
     let current_queue_size = Arc::new(AtomicI32::new(0));
 
-    // Prime the directory. TODO: Find a better place for this.
-    {
-        println!("Priming the directory");
-        tokio::fs::create_dir_all("var/db").await?;
-        tokio::fs::write("var/db/init.txt", "/something/something/").await?;
-    }
-
-    let query_service = QueryService::new(PathBuf::from("var/db/init.txt"))
-        .index_db()
-        .await?
-        .register_for_periodic_update()?;
-
     async move {
+        let query_service = Arc::new(query_service);
+        let router_addr = Arc::new(router_addr);
         loop {
             let (size, addr) = socket.recv_from(&mut buf).await?;
             let content = buf[..size].to_vec();
 
             let current_queue_size = current_queue_size.clone();
-            let tx = tx.clone();
 
             if current_queue_size.load(Ordering::Relaxed) >= max_queue_size {
                 println!("queue full please try again later");
                 continue;
             }
+
+            let query_service = query_service.clone();
+            let socket = socket.clone();
+            let router_addr = router_addr.clone();
             current_queue_size.fetch_add(1, Ordering::Relaxed);
 
             tokio::spawn(async move {
@@ -56,39 +44,14 @@ pub async fn get_input_task(
                 println!("received content... processing");
 
                 // call byte handler to decode message and run a query
-
-                if let Err(e) = tx
-                    .send(ReturnMsg {
-                        content: Vec::new(),
-                        addr,
-                    })
-                    .await
-                {
-                    println!("message send failed {}", e);
-                }
+                let _ = query_service.process_bytes(&content).await;
+                _ = socket.send_to(&content, router_addr.as_str()).await?;
 
                 current_queue_size.fetch_sub(1, Ordering::Relaxed);
+                Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
             });
         }
         #[allow(unreachable_code)]
-        Ok(())
-    }
-    .await
-}
-
-/// Provider for task that listens for internal messages.
-/// Upon receiving a message, it sends a udp response back to the target port.
-pub async fn get_output_task(
-    mut rx: mpsc::Receiver<ReturnMsg>,
-    socket: Arc<UdpSocket>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    async move {
-        while let Some(msg) = rx.recv().await {
-            let ReturnMsg { content, addr } = msg;
-            if let Err(_) = socket.send_to(&content, &addr).await {
-                println!("message send failed");
-            }
-        }
         Ok(())
     }
     .await

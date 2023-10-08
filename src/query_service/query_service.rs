@@ -6,9 +6,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
+use tokio::task::JoinHandle;
 
 use super::dns_query_answer::*;
 use super::dns_query_question::*;
+use super::response::Response;
 
 // We shall enforce the state transition order as reflected by the structs' order below:
 #[allow(dead_code)]
@@ -147,10 +149,20 @@ impl QueryService<NotRegisteredForPeriodicUpdate> {
 }
 
 impl QueryService<Ready> {
+    /// This is the main entry point for request processing.
+    /// The request shall be read into a byte vector.
     pub async fn process_bytes(
         &self,
         input_bytes: &Vec<u8>,
-    ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-        Ok(vec![])
+    ) -> Result<Response, Box<dyn std::error::Error + Send + Sync>> {
+        let query = DNSQueryQuestion::try_from(input_bytes)?;
+        println!("Query: {:?}", query);
+        Ok(Response::Miss)
+    }
+
+    pub fn gib_update_task_handle(
+        &mut self,
+    ) -> Option<JoinHandle<Result<(), Box<dyn std::error::Error + Send + Sync>>>> {
+        self.update_handle.take()
     }
 }

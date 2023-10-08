@@ -1,4 +1,6 @@
-use rustle::{get_input_task, get_output_task, ReturnMsg};
+use rustle::get_input_task;
+use rustle::QueryService;
+use std::path::PathBuf;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::net::UdpSocket;
@@ -10,28 +12,43 @@ struct Opt {
 
     #[structopt(default_value = "3", short, long)]
     maxqueuesize: i32,
+
+    #[structopt(default_value = "2001:558:feed::1:53", short, long)]
+    router_addr: String,
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // need to pass port and maxqueuesize to task instantiation
-    let Opt { port, maxqueuesize } = Opt::from_args();
-    let addr = format!("127.0.0.1:{}", port);
+    let Opt {
+        port,
+        maxqueuesize,
+        router_addr,
+    } = Opt::from_args();
+    let addr = format!("[::]:{}", port);
     let socket = Arc::new(UdpSocket::bind(addr).await?);
-    let (tx, rx) = tokio::sync::mpsc::channel::<ReturnMsg>(100);
 
-    let socket_ref = socket.clone();
-    let output_task = tokio::spawn(get_output_task(rx, socket_ref));
+    tokio::fs::create_dir_all("var/db").await?;
+    tokio::fs::write("var/db/init.txt", "/something/something/").await?;
 
-    let socket_ref = socket.clone();
-    let input_task = tokio::spawn(get_input_task(maxqueuesize, socket_ref, tx));
+    let mut query_service = QueryService::new(PathBuf::from("var/db/init.txt"))
+        .index_db()
+        .await?
+        .register_for_periodic_update()?;
+    let update_task_handle = query_service.gib_update_task_handle().unwrap();
+    let input_task = tokio::spawn(get_input_task(
+        maxqueuesize,
+        socket.clone(),
+        router_addr,
+        query_service,
+    ));
 
     tokio::select! {
-        _ = output_task => {
-            println!("Output task exited")
-        }
         _ = input_task => {
             println!("Input task exited")
+        }
+        _ = update_task_handle => {
+            println!("Update task exited")
         }
     }
 
